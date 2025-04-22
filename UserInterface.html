@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EV ChargePoint</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 350px;
+            background-color: #fff;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+        }
+
+        .logo {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+        }
+
+        .logo h1 {
+            color: #4CAF50;
+            font-size: 1.5rem;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #eee;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .tab:hover:not(.active) {
+            background-color: #f0f0f0;
+        }
+
+        /* Tab Content */
+        .tab-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        /* Map View */
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+
+        /* Search Box */
+        .search-box {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            width: 350px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        /* Station List */
+        .station-list {
+            margin-top: 15px;
+        }
+
+        .station-card {
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .station-card:hover {
+            border-color: #4CAF50;
+            box-shadow: 0 2px 8px rgba(76, 175, 80, 0.2);
+        }
+
+        .station-card h3 {
+            color: #4CAF50;
+            margin-bottom: 5px;
+        }
+
+        .station-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .station-status {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .available {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .occupied {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+
+        .action-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+
+        .action-btn:hover {
+            background-color: #3e8e41;
+        }
+
+        /* Profile Section */
+        .profile-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .profile-pic {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: #ddd;
+            margin-right: 15px;
+            overflow: hidden;
+        }
+
+        .profile-info h2 {
+            margin-bottom: 5px;
+        }
+
+        .profile-info p {
+            color: #666;
+        }
+
+        .profile-details {
+            margin-top: 20px;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        /* Booking Section */
+        .booking-form {
+            margin-top: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .form-group input, 
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .time-selection {
+            display: flex;
+            gap: 10px;
+        }
+
+        .time-selection select {
+            flex: 1;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: auto;
+            }
+            
+            .search-box {
+                width: calc(100% - 40px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="logo">
+                <h1>EV ChargePoint</h1>
+            </div>
+            
+            <div class="tabs">
+                <div class="tab active" data-tab="map">Map View</div>
+                <div class="tab" data-tab="search">Find Stations</div>
+                <div class="tab" data-tab="booking">Booking</div>
+                <div class="tab" data-tab="profile">Profile</div>
+            </div>
+            
+            <div class="tab-content">
+                <!-- Map View Tab -->
+                <div class="tab-panel active" id="map-tab">
+                    <h2>Nearby Stations</h2>
+                    <div class="station-list" id="nearby-stations">
+                        <!-- Stations will be populated by JavaScript -->
+                    </div>
+                </div>
+                
+                <!-- Search Tab -->
+                <div class="tab-panel" id="search-tab">
+                    <h2>Find Charging Stations</h2>
+                    <div class="form-group">
+                        <label for="location-search">Location</label>
+                        <input type="text" id="location-search" placeholder="Enter address or area">
+                    </div>
+                    <div class="form-group">
+                        <label for="charger-type">Charger Type</label>
+                        <select id="charger-type">
+                            <option value="all">All Types</option>
+                            <option value="fast">Fast Chargers</option>
+                            <option value="slow">Slow Chargers</option>
+                        </select>
+                    </div>
+                    <button class="action-btn" id="search-btn">Search</button>
+                    <div class="station-list" id="search-results">
+                        <!-- Search results will be populated by JavaScript -->
+                    </div>
+                </div>
+                
+                <!-- Booking Tab -->
+                <div class="tab-panel" id="booking-tab">
+                    <h2>Book a Charging Session</h2>
+                    <div class="booking-form">
+                        <div class="form-group">
+                            <label for="booking-station">Select Station</label>
+                            <select id="booking-station">
+                                <option value="">-- Select a station --</option>
+                                <!-- Stations will be populated by JavaScript -->
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="booking-vehicle">Select Vehicle</label>
+                            <select id="booking-vehicle">
+                                <option value="tesla">Tesla Model 3</option>
+                                <option value="nissan">Nissan Leaf</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="booking-date">Date</label>
+                            <input type="date" id="booking-date">
+                        </div>
+                        <div class="form-group">
+                            <label>Time</label>
+                            <div class="time-selection">
+                                <select id="booking-start">
+                                    <!-- Times will be populated by JavaScript -->
+                                </select>
+                                <select id="booking-end">
+                                    <!-- Times will be populated by JavaScript -->
+                                </select>
+                            </div>
+                        </div>
+                        <button class="action-btn" id="book-now-btn">Book Now</button>
+                    </div>
+                </div>
+                
+                <!-- Profile Tab -->
+                <div class="tab-panel" id="profile-tab">
+                    <div class="profile-header">
+                        <div class="profile-pic"></div>
+                        <div class="profile-info">
+                            <h2>John Doe</h2>
+                            <p>Member since 2022</p>
+                        </div>
+                    </div>
+                    <div class="profile-details">
+                        <div class="detail-row">
+                            <span>Email</span>
+                            <span>john.doe@example.com</span>
+                        </div>
+                        <div class="detail-row">
+                            <span>Phone</span>
+                            <span>+1 (555) 123-4567</span>
+                        </div>
+                        <div class="detail-row">
+                            <span>Vehicles</span>
+                            <span>2</span>
+                        </div>
+                        <div class="detail-row">
+                            <span>Total Sessions</span>
+                            <span>24</span>
+                        </div>
+                    </div>
+                    <button class="action-btn" style="margin-top: 20px; width: 100%;">Edit Profile</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Map View -->
+        <div class="map-container">
+            <div id="map"></div>
+            <div class="search-box">
+                <input type="text" placeholder="Search for charging stations...">
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        // Initialize the map
+        const map = L.map('map').setView([51.505, -0.09], 13);
+        
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        
+        // Sample charging station data
+        const stations = [
+            {
+                id: 1,
+                name: "Green Energy Station",
+                address: "123 Main St, London",
+                lat: 51.51,
+                lng: -0.08,
+                type: "fast",
+                available: true,
+                price: "£0.45/kWh"
+            },
+            {
+                id: 2,
+                name: "Eco Charge Point",
+                address: "456 Park Ave, London",
+                lat: 51.50,
+                lng: -0.10,
+                type: "fast",
+                available: false,
+                price: "£0.50/kWh"
+            },
+            {
+                id: 3,
+                name: "City Power Hub",
+                address: "789 Oxford St, London",
+                lat: 51.515,
+                lng: -0.095,
+                type: "slow",
+                available: true,
+                price: "£0.35/kWh"
+            }
+        ];
+        
+        // Add markers for each station
+        const markers = [];
+        stations.forEach(station => {
+            const marker = L.marker([station.lat, station.lng]).addTo(map)
+                .bindPopup(`<b>${station.name}</b><br>${station.address}<br>Status: ${station.available ? 'Available' : 'Occupied'}`);
+            
+            markers.push({
+                id: station.id,
+                marker: marker,
+                data: station
+            });
+        });
+        
+        // Tab switching functionality
+        const tabs = document.querySelectorAll('.tab');
+        const tabPanels = document.querySelectorAll('.tab-panel');
+        
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Remove active class from all tabs and panels
+                tabs.forEach(t => t.classList.remove('active'));
+                tabPanels.forEach(p => p.classList.remove('active'));
+                
+                // Add active class to clicked tab and corresponding panel
+                tab.classList.add('active');
+                const tabId = tab.getAttribute('data-tab');
+                document.getElementById(`${tabId}-tab`).classList.add('active');
+                
+                // If switching to map tab, fit all markers in view
+                if (tabId === 'map') {
+                    const markerGroup = new L.featureGroup(markers.map(m => m.marker));
+                    map.fitBounds(markerGroup.getBounds().pad(0.2));
+                }
+            });
+        });
+        
+        // Populate nearby stations list
+        const nearbyStationsList = document.getElementById('nearby-stations');
+        
+        function renderStationList(stations, container) {
+            container.innerHTML = '';
+            stations.forEach(station => {
+                const stationCard = document.createElement('div');
+                stationCard.className = 'station-card';
+                stationCard.innerHTML = `
+                    <h3>${station.name}</h3>
+                    <div class="station-info">
+                        <span>${station.address}</span>
+                        <span>${station.price}</span>
+                    </div>
+                    <div class="station-status ${station.available ? 'available' : 'occupied'}">
+                        ${station.available ? 'Available' : 'Occupied'}
+                    </div>
+                    <button class="action-btn" style="margin-top: 10px;" data-id="${station.id}">
+                        ${station.available ? 'Book Now' : 'View Details'}
+                    </button>
+                `;
+                container.appendChild(stationCard);
+                
+                // Add click event to focus on the map marker
+                stationCard.querySelector('button').addEventListener('click', () => {
+                    const markerObj = markers.find(m => m.id === station.id);
+                    if (markerObj) {
+                        map.setView([markerObj.data.lat, markerObj.data.lng], 15);
+                        markerObj.marker.openPopup();
+                    }
+                });
+            });
+        }
+        
+        renderStationList(stations, nearbyStationsList);
+        
+        // Populate booking station dropdown
+        const bookingStationSelect = document.getElementById('booking-station');
+        stations.forEach(station => {
+            const option = document.createElement('option');
+            option.value = station.id;
+            option.textContent = `${station.name} - ${station.address}`;
+            bookingStationSelect.appendChild(option);
+        });
+        
+        // Populate time dropdowns
+        const startTimeSelect = document.getElementById('booking-start');
+        const endTimeSelect = document.getElementById('booking-end');
+        
+        for (let hour = 7; hour <= 22; hour++) {
+            for (let minute = 0; minute < 60; minute += 30) {
+                const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+                const option1 = document.createElement('option');
+                option1.value = timeStr;
+                option1.textContent = timeStr;
+                startTimeSelect.appendChild(option1);
+                
+                const option2 = document.createElement('option');
+                option2.value = timeStr;
+                option2.textContent = timeStr;
+                endTimeSelect.appendChild(option2);
+            }
+        }
+        
+        // Set default end time to 1 hour after start time
+        startTimeSelect.addEventListener('change', () => {
+            const startTime = startTimeSelect.value;
+            if (startTime) {
+                const [hours, minutes] = startTime.split(':').map(Number);
+                let endHours = hours + 1;
+                if (endHours >= 24) endHours = 23;
+                
+                const endTime = `${endHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                endTimeSelect.value = endTime;
+            }
+        });
+        
+        // Search functionality
+        const searchBtn = document.getElementById('search-btn');
+        const searchResults = document.getElementById('search-results');
+        
+        searchBtn.addEventListener('click', () => {
+            const locationQuery = document.getElementById('location-search').value.toLowerCase();
+            const chargerType = document.getElementById('charger-type').value;
+            
+            let filteredStations = stations;
+            
+            if (locationQuery) {
+                filteredStations = filteredStations.filter(station => 
+                    station.address.toLowerCase().includes(locationQuery) || 
+                    station.name.toLowerCase().includes(locationQuery)
+                );
+            }
+            
+            if (chargerType !== 'all') {
+                filteredStations = filteredStations.filter(station => 
+                    station.type === chargerType
+                );
+            }
+            
+            renderStationList(filteredStations, searchResults);
+        });
+        
+        // Booking functionality
+        const bookNowBtn = document.getElementById('book-now-btn');
+        
+        bookNowBtn.addEventListener('click', () => {
+            const stationId = bookingStationSelect.value;
+            const vehicle = document.getElementById('booking-vehicle').value;
+            const date = document.getElementById('booking-date').value;
+            const startTime = startTimeSelect.value;
+            const endTime = endTimeSelect.value;
+            
+            if (!stationId || !date || !startTime || !endTime) {
+                alert('Please fill in all booking details');
+                return;
+            }
+            
+            const station = stations.find(s => s.id === parseInt(stationId));
+            
+            alert(`Booking confirmed!\n\nStation: ${station.name}\nVehicle: ${vehicle}\nDate: ${date}\nTime: ${startTime} - ${endTime}`);
+        });
+    </script>
+</body>
+</html>
