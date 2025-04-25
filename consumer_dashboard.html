@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EV ChargePoint</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 350px;
+            background-color: #fff;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+        }
+
+        .logo {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+        }
+
+        .logo h1 {
+            color: #4CAF50;
+            font-size: 1.5rem;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #eee;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .tab:hover:not(.active) {
+            background-color: #f0f0f0;
+        }
+
+        /* Tab Content */
+        .tab-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        /* Map View */
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+
+        /* Search Box */
+        .search-box {
+            position: absolute;
+            top: 12px;
+            left: 225;
+            z-index: 1000;
+            width: 350px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        /* Station List */
+        .station-list {
+            margin-top: 15px;
+        }
+
+        .station-card {
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .station-card:hover {
+            border-color: #4CAF50;
+            box-shadow: 0 2px 8px rgba(76, 175, 80, 0.2);
+        }
+
+        .station-card h3 {
+            color: #4CAF50;
+            margin-bottom: 5px;
+        }
+
+        .station-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .station-status {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .available {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .occupied {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+
+        .action-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+
+        .action-btn:hover {
+            background-color: #3e8e41;
+        }
+
+        /* Profile Section */
+        .profile-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .profile-pic {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: #ddd;
+            margin-right: 15px;
+            overflow: hidden;
+        }
+
+        .profile-info h2 {
+            margin-bottom: 5px;
+        }
+
+        .profile-info p {
+            color: #666;
+        }
+
+        .profile-details {
+            margin-top: 20px;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        /* Booking Section */
+        .booking-form {
+            margin-top: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .form-group input, 
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .time-selection {
+            display: flex;
+            gap: 10px;
+        }
+
+        .time-selection select {
+            flex: 1;
+        }
+
+        /* Tracking Controls */
+        .tracking-controls {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .tracking-status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            background: #f5f5f5;
+            font-size: 0.9rem;
+        }
+
+        /* Vehicle Tracking Marker */
+        .vehicle-marker {
+            background: #1976D2;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            border: 3px solid white;
+            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: auto;
+            }
+            
+            .search-box {
+                width: calc(100% - 40px);
+                position: fixed;
+            
+            }
+        }
+        .map-controls {
+            position: absolute;
+            top: 70px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .map-btn {
+            background: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-weight: 500;
+        }
+        
+        .map-btn:hover {
+            background: #f5f5f5;
+        }
+        
+        .map-btn.active {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .user-marker {
+            background: #1976D2;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            border: 3px solid white;
+            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+        }
+        
+        .location-status {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+        
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="logo">
+                <h1>EV ChargePoint</h1>
+            </div>
+            
+            <div class="tabs">
+                <div class="tab active" data-tab="map">Map View</div>
+                <div class="tab" data-tab="search">Find Stations</div>
+                <div class="tab" data-tab="booking">Booking</div>
+                <div class="tab" data-tab="profile">Profile</div>
+            </div>
+          
+            <div class="tab-content">
+                <!-- Map View Tab -->
+                <div class="tab-panel active" id="map-tab">
+                    <h2>Nearby Stations</h2>
+                    <div class="station-list" id="nearby-stations">
+                        <!-- Stations will be populated by JavaScript -->
+                    </div>
+                </div>
+                
+                <!-- Search Tab -->
+                <div class="tab-panel" id="search-tab">
+                    <h2>Find Charging Stations</h2>
+                    <div class="form-group">
+                        <label for="location-search">Location</label>
+                        <input type="text" id="location-search" placeholder="Enter address or area">
+                    </div>
+                    <div class="form-group">
+                        <label for="charger-type">Charger Type</label>
+                        <select id="charger-type">
+                            <option value="all">All Types</option>
+                            <option value="fast">Fast Chargers</option>
+                            <option value="slow">Slow Chargers</option>
+                        </select>
+                    </div>
+                    <button class="action-btn" id="search-btn">Search</button>
+                    <div class="station-list" id="search-results">
+                        <!-- Search results will be populated by JavaScript -->
+                    </div>
+                </div>
+                
+                <!-- Booking Tab -->
+                <div class="tab-panel" id="booking-tab">
+                    <h2>Book a Charging Session</h2>
+                    <div class="booking-form">
+                        <div class="form-group">
+                            <label for="booking-station">Select Station</label>
+                            <select id="booking-station">
+                                <option value="">-- Select a station --</option>
+                                <!-- Stations will be populated by JavaScript -->
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="booking-vehicle">Select Vehicle</label>
+                            <select id="booking-vehicle">
+                                <!-- Vehicles will be populated by JavaScript -->
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="booking-date">Date</label>
+                            <input type="date" id="booking-date">
+                        </div>
+                        <div class="form-group">
+                            <label>Time</label>
+                            <div class="time-selection">
+                                <select id="booking-start">
+                                    <!-- Times will be populated by JavaScript -->
+                                </select>
+                                <select id="booking-end">
+                                    <!-- Times will be populated by JavaScript -->
+                                </select>
+                            </div>
+                        </div>
+                        <button class="action-btn" id="book-now-btn">Book Now</button>
+                    </div>
+                </div>
+                
+                <!-- Profile Tab -->
+                <div class="tab-panel" id="profile-tab">
+                    <div class="profile-header">
+                        <div class="profile-pic"></div>
+                        <div class="profile-info">
+                            <h2 id="profile-name">Ram sharma</h2>
+                            <p id="profile-join-date">Member since 2021</p>
+                        </div>
+                    </div>
+                    <div class="profile-details">
+                        <div class="detail-row">
+                            <span>Email</span>
+                            <span id="profile-email">parthverma.21@example.com</span>
+                        </div>
+                        <div class="detail-row">
+                            <span>Phone</span>
+                            <span id="profile-phone">+91 7000605643</span>
+                        </div>
+                        <div class="detail-row">
+                            <span>Vehicles</span>
+                            <span id="profile-vehicles-count">2</span>
+                        </div>
+                        <div class="detail-row">
+                            <span>Total Sessions</span>
+                            <span id="profile-sessions">24</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Vehicle Tracking Section -->
+                    <div class="tracking-controls">
+                        <h3>Vehicle Tracking</h3>
+                        <div class="form-group">
+                            <label for="tracking-vehicle">Select Vehicle to Track</label>
+                            <select id="tracking-vehicle">
+                                <!-- Vehicles will be populated by JavaScript -->
+                            </select>
+                        </div>
+                        <button class="action-btn" id="start-tracking-btn">Start Tracking</button>
+                        <button class="action-btn" id="stop-tracking-btn" style="background-color: #f44336; margin-left: 10px;">Stop Tracking</button>
+                        <div class="tracking-status" id="tracking-status">
+                            Tracking inactive
+                        </div>
+                    </div>
+                    
+                    <button class="action-btn" style="margin-top: 20px; width: 100%;">Edit Profile</button>
+                    <button class="action-btn" id="logout-btn" style="margin-top: 20px; width: 100%; background-color: #f44336;">Logout</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Map View -->
+        <div class="map-container">
+            <div id="map"></div>
+        <div class="search-box">
+            <input type="text" id="map-search" placeholder="Search for charging stations...">
+        </div>
+        <!-- Add these new controls -->
+        <div class="map-controls">
+            <button id="my-location-btn" class="map-btn" title="Find my location">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2a8 8 0 0 0-8 8c0 5.4 7 11.5 7.3 11.8a1 1 0 0 0 1.4 0C13 21.5 20 15.4 20 10a8 8 0 0 0-8-8zm0 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"></path>
+                </svg>
+                My Location
+            </button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        // Add this near the top with other variables
+        
+let userLocationMarker = null;
+let connectionLine = null;
+
+// Add this function to get user location
+function getUserLocation() {
+    return new Promise((resolve, reject) => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                position => resolve([position.coords.latitude, position.coords.longitude]),
+                error => reject(error)
+            );
+        } else {
+            reject(new Error("Geolocation is not supported by this browser."));
+        }
+    });
+}
+
+// Update the my-location-btn click handler
+document.getElementById('my-location-btn').addEventListener('click', () => {
+    getUserLocation()
+        .then(coords => {
+            // Remove previous user location marker if exists
+            if (userLocationMarker) {
+                map.removeLayer(userLocationMarker);
+            }
+            
+            // Add new marker for user location
+            userLocationMarker = L.marker(coords, {
+                icon: L.divIcon({ className: 'user-marker' })
+            }).addTo(map)
+              .bindPopup("Your Location");
+            
+            // Center map on user location
+            map.setView(coords, 15);
+            
+            // Update location status
+            document.querySelector('.location-status').textContent = 
+                `Location found: ${coords[0].toFixed(4)}, ${coords[1].toFixed(4)}`;
+        })
+        .catch(error => {
+            console.error("Error getting location:", error);
+            document.querySelector('.location-status').textContent = 
+                "Error getting location: " + error.message;
+        });
+});
+
+// Add location status element to the map
+const locationStatus = document.createElement('div');
+locationStatus.className = 'location-status';
+locationStatus.textContent = "Location not yet determined";
+document.querySelector('.map-container').appendChild(locationStatus);
+
+// Modify the station card click handler to draw connection line
+function setupStationCardClick(stationCard, stationId) {
+    stationCard.querySelector('button').addEventListener('click', async () => {
+        const markerObj = stationMarkers.find(m => m.id === stationId);
+        if (markerObj) {
+            map.setView([markerObj.data.lat, markerObj.data.lng], 15);
+            markerObj.marker.openPopup();
+            
+            try {
+                // Get user location
+                const userCoords = await getUserLocation();
+                
+                // Remove previous line if exists
+                if (connectionLine) {
+                    map.removeLayer(connectionLine);
+                }
+                
+                // Draw line between user and station
+                connectionLine = L.polyline([userCoords, [markerObj.data.lat, markerObj.data.lng]], {
+                    color: '#4CAF50',
+                    weight: 3,
+                    dashArray: '5, 5'
+                }).addTo(map);
+                
+                // Add/update user location marker
+                if (userLocationMarker) {
+                    map.removeLayer(userLocationMarker);
+                }
+                userLocationMarker = L.marker(userCoords, {
+                    icon: L.divIcon({ className: 'user-marker' })
+                }).addTo(map)
+                  .bindPopup("Your Location");
+                
+                // Fit both points in view
+                const bounds = L.latLngBounds([userCoords, [markerObj.data.lat, markerObj.data.lng]]);
+                map.fitBounds(bounds.pad(0.2));
+                
+            } catch (error) {
+                console.error("Error getting user location:", error);
+                document.querySelector('.location-status').textContent = 
+                    "Could not draw connection: " + error.message;
+            }
+        }
+    });
+}
+
+// Update the renderStationList function to use the new click handler
+function renderStationList(stations, container) {
+    container.innerHTML = '';
+    stations.forEach(station => {
+        const stationCard = document.createElement('div');
+        stationCard.className = 'station-card';
+        stationCard.innerHTML = `
+            <h3>${station.name}</h3>
+            <div class="station-info">
+                <span>${station.address}</span>
+                <span>${station.price}</span>
+            </div>
+            <div class="station-status ${station.available ? 'available' : 'occupied'}">
+                ${station.available ? 'Available' : 'Occupied'}
+            </div>
+            <button class="action-btn" style="margin-top: 10px;" data-id="${station.id}">
+                ${station.available ? 'Book Now' : 'View Details'}
+            </button>
+        `;
+        container.appendChild(stationCard);
+        
+        // Use the new click handler
+        setupStationCardClick(stationCard, station.id);
+    });
+}
+        // User data
+        const currentUser = {
+            id: 1,
+            name: "Parth verma",
+            email: "parthverma.21@example.com",
+            phone: "+91 7000605643",
+            joinDate: "2025",
+            vehicles: [
+                { id: 1, name: "XUV 500" },
+                { id: 2, name: "Tata Nexon ev" }
+            ],
+            sessions: 24
+        };
+
+        // Initialize the map with Bhopal coordinates
+        const map = L.map('map').setView([23.2599, 77.4126], 13);
+        
+        
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Custom vehicle icon
+        const vehicleIcon = L.divIcon({
+            className: 'vehicle-marker',
+            iconSize: [20, 20]
+        });
+
+        // Sample charging station data for Bhopal
+        const stations = [
+            {
+                id: 1,
+                name: "Tata power",
+                address: "JK Road,Sector A, Bhopal ",
+                lat: 23.25906,
+                lng: 77.45687,
+                type: "fast",
+                available: true,
+                price: "₹15/kWh"
+            },
+            {
+                id: 2,
+                name: "MP Nagar Charging Hub",
+                address: "Zone 1, MP Nagar, Bhopal",
+                lat: 23.23155,
+                lng: 77.44223,
+                type: "fast",
+                available: false,
+                price: "₹18/kWh"
+            },
+            {
+                id: 3,
+                name: "E-Fill Charge Station",
+                address: "Mahatma Gandhi road ,Shakti Nagar ,Bhopal ",
+                lat: 23.23163,
+                lng: 77.45755,
+                type: "slow",
+                available: true,
+                price: "₹10/kWh"
+            }
+        ];
+        
+        // Add markers for each station
+        const stationMarkers = [];
+        stations.forEach(station => {
+            const marker = L.marker([station.lat, station.lng]).addTo(map)
+                .bindPopup(`<b>${station.name}</b><br>${station.address}<br>Status: ${station.available ? 'Available' : 'Occupied'}`);
+            
+            stationMarkers.push({
+                id: station.id,
+                marker: marker,
+                data: station
+            });
+        });
+
+        // Vehicle tracking variables
+        let vehicleMarker = null;
+        let trackingInterval = null;
+        let currentTrackingVehicle = null;
+        let watchId = null;
+
+        // Update profile information
+        document.getElementById('profile-name').textContent = currentUser.name;
+        document.getElementById('profile-join-date').textContent = `Member since ${currentUser.joinDate}`;
+        document.getElementById('profile-email').textContent = currentUser.email;
+        document.getElementById('profile-phone').textContent = currentUser.phone;
+        document.getElementById('profile-vehicles-count').textContent = currentUser.vehicles.length;
+        document.getElementById('profile-sessions').textContent = currentUser.sessions;
+
+        // Populate vehicle dropdowns
+        function populateVehicleDropdowns() {
+            const bookingVehicleSelect = document.getElementById('booking-vehicle');
+            const trackingVehicleSelect = document.getElementById('tracking-vehicle');
+            
+            bookingVehicleSelect.innerHTML = '';
+            trackingVehicleSelect.innerHTML = '';
+            
+            currentUser.vehicles.forEach(vehicle => {
+                // For booking form
+                const option1 = document.createElement('option');
+                option1.value = vehicle.id;
+                option1.textContent = vehicle.name;
+                bookingVehicleSelect.appendChild(option1);
+                
+                // For tracking form
+                const option2 = document.createElement('option');
+                option2.value = vehicle.id;
+                option2.textContent = vehicle.name;
+                trackingVehicleSelect.appendChild(option2);
+            });
+        }
+        
+        populateVehicleDropdowns();
+
+        // Tab switching functionality
+        const tabs = document.querySelectorAll('.tab');
+        const tabPanels = document.querySelectorAll('.tab-panel');
+        
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Remove active class from all tabs and panels
+                tabs.forEach(t => t.classList.remove('active'));
+                tabPanels.forEach(p => p.classList.remove('active'));
+                
+                // Add active class to clicked tab and corresponding panel
+                tab.classList.add('active');
+                const tabId = tab.getAttribute('data-tab');
+                document.getElementById(`${tabId}-tab`).classList.add('active');
+                
+                // If switching to map tab, fit all markers in view
+                if (tabId === 'map') {
+                    const markerGroup = new L.featureGroup(stationMarkers.map(m => m.marker));
+                    if (vehicleMarker) markerGroup.addLayer(vehicleMarker);
+                    map.fitBounds(markerGroup.getBounds().pad(0.2));
+                }
+            });
+        });
+        
+        // Populate nearby stations list
+        const nearbyStationsList = document.getElementById('nearby-stations');
+        
+        function renderStationList(stations, container) {
+            container.innerHTML = '';
+            stations.forEach(station => {
+                const stationCard = document.createElement('div');
+                stationCard.className = 'station-card';
+                stationCard.innerHTML = `
+                    <h3>${station.name}</h3>
+                    <div class="station-info">
+                        <span>${station.address}</span>
+                        <span>${station.price}</span>
+                    </div>
+                    <div class="station-status ${station.available ? 'available' : 'occupied'}">
+                        ${station.available ? 'Available' : 'Occupied'}
+                    </div>
+                    <button class="action-btn" style="margin-top: 10px;" data-id="${station.id}">
+                        ${station.available ? 'Book Now' : 'View Details'}
+                    </button>
+                `;
+                container.appendChild(stationCard);
+                
+                // Add click event to focus on the map marker
+                stationCard.querySelector('button').addEventListener('click', () => {
+                    const markerObj = stationMarkers.find(m => m.id === station.id);
+                    if (markerObj) {
+                        map.setView([markerObj.data.lat, markerObj.data.lng], 15);
+                        markerObj.marker.openPopup();
+                    }
+                });
+            });
+        }
+        
+        renderStationList(stations, nearbyStationsList);
+        
+        // Populate booking station dropdown
+        const bookingStationSelect = document.getElementById('booking-station');
+        stations.forEach(station => {
+            const option = document.createElement('option');
+            option.value = station.id;
+            option.textContent = `${station.name} - ${station.address}`;
+            bookingStationSelect.appendChild(option);
+        });
+        
+        // Populate time dropdowns
+        const startTimeSelect = document.getElementById('booking-start');
+        const endTimeSelect = document.getElementById('booking-end');
+        
+        for (let hour = 7; hour <= 22; hour++) {
+            for (let minute = 0; minute < 60; minute += 30) {
+                const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+                const option1 = document.createElement('option');
+                option1.value = timeStr;
+                option1.textContent = timeStr;
+                startTimeSelect.appendChild(option1);
+                
+                const option2 = document.createElement('option');
+                option2.value = timeStr;
+                option2.textContent = timeStr;
+                endTimeSelect.appendChild(option2);
+            }
+        }
+        
+        // Set default end time to 1 hour after start time
+        startTimeSelect.addEventListener('change', () => {
+            const startTime = startTimeSelect.value;
+            if (startTime) {
+                const [hours, minutes] = startTime.split(':').map(Number);
+                let endHours = hours + 1;
+                if (endHours >= 24) endHours = 23;
+                
+                const endTime = `${endHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                endTimeSelect.value = endTime;
+            }
+        });
+        
+        // Search functionality
+        const searchBtn = document.getElementById('search-btn');
+        const searchResults = document.getElementById('search-results');
+        
+        searchBtn.addEventListener('click', () => {
+            const locationQuery = document.getElementById('location-search').value.toLowerCase();
+            const chargerType = document.getElementById('charger-type').value;
+            
+            let filteredStations = stations;
+            
+            if (locationQuery) {
+                filteredStations = filteredStations.filter(station => 
+                    station.address.toLowerCase().includes(locationQuery) || 
+                    station.name.toLowerCase().includes(locationQuery)
+                );
+            }
+            
+            if (chargerType !== 'all') {
+                filteredStations = filteredStations.filter(station => 
+                    station.type === chargerType
+                );
+            }
+            
+            renderStationList(filteredStations, searchResults);
+        });
+        
+        // Booking functionality
+        const bookNowBtn = document.getElementById('book-now-btn');
+        
+        bookNowBtn.addEventListener('click', () => {
+            const stationId = bookingStationSelect.value;
+            const vehicleId = document.getElementById('booking-vehicle').value;
+            const date = document.getElementById('booking-date').value;
+            const startTime = startTimeSelect.value;
+            const endTime = endTimeSelect.value;
+            
+            if (!stationId || !date || !startTime || !endTime) {
+                alert('Please fill in all booking details');
+                return;
+            }
+            
+            const station = stations.find(s => s.id === parseInt(stationId));
+            const vehicle = currentUser.vehicles.find(v => v.id === parseInt(vehicleId));
+            
+            alert(`Booking confirmed!\n\nStation: ${station.name}\nVehicle: ${vehicle.name}\nDate: ${date}\nTime: ${startTime} - ${endTime}`);
+        });
+
+        // Vehicle tracking functionality
+        const startTrackingBtn = document.getElementById('start-tracking-btn');
+        const stopTrackingBtn = document.getElementById('stop-tracking-btn');
+        const trackingStatus = document.getElementById('tracking-status');
+
+        // Simulate vehicle movement (in a real app, this would come from GPS)
+        function simulateVehicleMovement(vehicleId) {
+            // Start from a random position near Bhopal
+            let lat = 23.2599 + (Math.random() * 0.02 - 0.01);
+            let lng = 77.4126 + (Math.random() * 0.02 - 0.01);
+            
+            return setInterval(() => {
+                // Simulate small movement
+                lat += (Math.random() * 0.001 - 0.0005);
+                lng += (Math.random() * 0.001 - 0.0005);
+                
+                // Update vehicle marker
+                if (!vehicleMarker) {
+                    vehicleMarker = L.marker([lat, lng], { icon: vehicleIcon })
+                        .addTo(map)
+                        .bindPopup(`<b>${currentUser.vehicles.find(v => v.id === vehicleId).name}</b><br>Tracking active`);
+                } else {
+                    vehicleMarker.setLatLng([lat, lng]);
+                }
+                
+                // Update status
+                trackingStatus.textContent = `Tracking active - Last update: ${new Date().toLocaleTimeString()}`;
+                trackingStatus.style.backgroundColor = '#e8f5e9';
+                trackingStatus.style.color = '#2e7d32';
+                
+                // Center map on vehicle if it goes out of view
+                if (!map.getBounds().contains(vehicleMarker.getLatLng())) {
+                    map.setView(vehicleMarker.getLatLng());
+                }
+            }, 2000); // Update every 2 seconds
+        }
+
+        // Start tracking
+        startTrackingBtn.addEventListener('click', () => {
+            const vehicleId = parseInt(document.getElementById('tracking-vehicle').value);
+            
+            if (!vehicleId) {
+                alert('Please select a vehicle to track');
+                return;
+            }
+            
+            currentTrackingVehicle = vehicleId;
+            
+            // In a real app, you would request location from the phone here
+            if (navigator.geolocation) {
+                trackingStatus.textContent = "Requesting location access...";
+                
+                // Request high accuracy location
+                const options = {
+                    enableHighAccuracy: true,
+                    maximumAge: 0,
+                    timeout: 5000
+                };
+                
+                watchId = navigator.geolocation.watchPosition(
+                    (position) => {
+                        const { latitude, longitude } = position.coords;
+                        
+                        // Update vehicle marker
+                        if (!vehicleMarker) {
+                            vehicleMarker = L.marker([latitude, longitude], { icon: vehicleIcon })
+                                .addTo(map)
+                                .bindPopup(`<b>${currentUser.vehicles.find(v => v.id === vehicleId).name}</b><br>Tracking active`);
+                        } else {
+                            vehicleMarker.setLatLng([latitude, longitude]);
+                        }
+                        
+                        // Update status
+                        trackingStatus.textContent = `Tracking active - Last update: ${new Date().toLocaleTimeString()}`;
+                        trackingStatus.style.backgroundColor = '#e8f5e9';
+                        trackingStatus.style.color = '#2e7d32';
+                        
+                        // Center map on vehicle if it goes out of view
+                        if (!map.getBounds().contains(vehicleMarker.getLatLng())) {
+                            map.setView(vehicleMarker.getLatLng());
+                        }
+                    },
+                    (error) => {
+                        console.error("Geolocation error:", error);
+                        trackingStatus.textContent = `Tracking error: ${error.message}`;
+                        trackingStatus.style.backgroundColor = '#ffebee';
+                        trackingStatus.style.color = '#c62828';
+                        
+                        // Fallback to simulated tracking if geolocation fails
+                        trackingInterval = simulateVehicleMovement(vehicleId);
+                    },
+                    options
+                );
+            } else {
+                // Fallback to simulated tracking if geolocation not supported
+                trackingStatus.textContent = "Geolocation not supported - using simulated tracking";
+                trackingInterval = simulateVehicleMovement(vehicleId);
+            }
+        });
+
+        // Stop tracking
+        stopTrackingBtn.addEventListener('click', () => {
+            if (watchId) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+            }
+            
+            if (trackingInterval) {
+                clearInterval(trackingInterval);
+                trackingInterval = null;
+            }
+            
+            if (vehicleMarker) {
+                map.removeLayer(vehicleMarker);
+                vehicleMarker = null;
+            }
+            
+            trackingStatus.textContent = "Tracking inactive";
+            trackingStatus.style.backgroundColor = '#f5f5f5';
+            trackingStatus.style.color = '#333';
+            currentTrackingVehicle = null;
+        });
+
+        // Map search functionality
+        const mapSearchInput = document.getElementById('map-search');
+        mapSearchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const query = mapSearchInput.value.toLowerCase();
+                const matchingStation = stations.find(station => 
+                    station.name.toLowerCase().includes(query) || 
+                    station.address.toLowerCase().includes(query)
+                );
+                
+                if (matchingStation) {
+                    map.setView([matchingStation.lat, matchingStation.lng], 15);
+                    const marker = stationMarkers.find(m => m.id === matchingStation.id).marker;
+                    marker.openPopup();
+                }
+            }
+        });
+        //location stablization
+        let lastValidLocation = null;
+    let locationUpdateCount = 0;
+    const LOCATION_UPDATE_INTERVAL = 5000; // 5 seconds
+    const MIN_ACCURACY_THRESHOLD = 100; // 100 meters
+    const MAX_JUMP_DISTANCE = 200; // 200 meters
+        //function for locateUser function with stablization
+    function locateUser() {
+        if (navigator.geolocation) {
+            const locationStatus = document.getElementById('location-status');
+            const myLocationBtn = document.getElementById('my-location-btn');
+            
+            if (isTrackingLocation) {
+                // Stop tracking
+                navigator.geolocation.clearWatch(locationWatchId);
+                locationWatchId = null;
+                isTrackingLocation = false;
+                myLocationBtn.classList.remove('active');
+                locationStatus.textContent = "Location tracking stopped";
+                return;
+            }
+            
+            // Start tracking
+            locationStatus.textContent = "Getting your location...";
+            myLocationBtn.classList.add('active');
+            
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            };
+            
+            // Get single position first for quick response
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    if (validateNewPosition(position)) {
+                        updateUserLocation(position);
+                        locationStatus.textContent = "Tracking your location";
+                    }
+                },
+                (error) => {
+                    handleLocationError(error);
+                    myLocationBtn.classList.remove('active');
+                },
+                options
+            );
+            
+            // Then watch for continuous updates with interval
+            locationWatchId = navigator.geolocation.watchPosition(
+                (position) => {
+                    if (validateNewPosition(position)) {
+                        updateUserLocation(position);
+                    }
+                },
+                (error) => {
+                    handleLocationError(error);
+                    myLocationBtn.classList.remove('active');
+                },
+                options
+            );
+            
+            isTrackingLocation = true;
+        } else {
+            alert("Geolocation is not supported by your browser.");
+        }
+    }
+    //validate new position before updating
+    function validateNewPosition(position) {
+        const { latitude, longitude, accuracy } = position.coords;
+        
+        // Reject if accuracy is too low
+        if (accuracy > MIN_ACCURACY_THRESHOLD) {
+            console.log("Rejected position - low accuracy:", accuracy);
+            return false;
+        }
+        
+        // If no previous position, accept this one
+        if (!lastValidLocation) {
+            lastValidLocation = { latitude, longitude };
+            locationUpdateCount = 1;
+            return true;
+        }
+        
+        // Calculate distance from last valid position
+        const distance = getDistance(
+            lastValidLocation.latitude, 
+            lastValidLocation.longitude,
+            latitude,
+            longitude
+        );
+        
+        // Reject if the jump is too large (likely GPS error)
+        if (distance > MAX_JUMP_DISTANCE && locationUpdateCount > 2) {
+            console.log("Rejected position - large jump:", distance);
+            return false;
+        }
+        
+        // Accept the position
+        lastValidLocation = { latitude, longitude };
+        locationUpdateCount++;
+        return true;
+    }
+    //modified updateUserLocation with smothing
+    function validateNewPosition(position) {
+        const { latitude, longitude, accuracy } = position.coords;
+        
+        // Reject if accuracy is too low
+        if (accuracy > MIN_ACCURACY_THRESHOLD) {
+            console.log("Rejected position - low accuracy:", accuracy);
+            return false;
+        }
+        
+        // If no previous position, accept this one
+        if (!lastValidLocation) {
+            lastValidLocation = { latitude, longitude };
+            locationUpdateCount = 1;
+            return true;
+        }
+        
+        // Calculate distance from last valid position
+        const distance = getDistance(
+            lastValidLocation.latitude, 
+            lastValidLocation.longitude,
+            latitude,
+            longitude
+        );
+        
+        // Reject if the jump is too large (likely GPS error)
+        if (distance > MAX_JUMP_DISTANCE && locationUpdateCount > 2) {
+            console.log("Rejected position - large jump:", distance);
+            return false;
+        }
+        
+        // Accept the position
+        lastValidLocation = { latitude, longitude };
+        locationUpdateCount++;
+        return true;
+    }
+        //Logout functionality
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            // Stop any active tracking
+            if (watchId || trackingInterval) {
+                stopTrackingBtn.click();
+            }
+            
+            // In a real app, you would call your backend to logout
+            alert('Logged out successfully');
+            // window.location.href = 'login.html'; // Uncomment in real implementation
+        });
+         // Add routing control
+    const routingControl = L.Routing.control({
+        waypoints: [],
+        routeWhileDragging: true,
+        showAlternatives: false,
+        addWaypoints: false,
+        draggableWaypoints: false,
+        fitSelectedRoutes: true,
+        lineOptions: {
+            styles: [{color: '#4CAF50', opacity: 0.7, weight: 5}]
+        }
+    }).addTo(map);
+
+    // Modified updateNearbyStations function
+    function updateNearbyStations(userLat, userLng) {
+        // Sort stations by distance to user
+        const sortedStations = [...stations].sort((a, b) => {
+            const distA = getDistance(userLat, userLng, a.lat, a.lng);
+            const distB = getDistance(userLat, userLng, b.lat, b.lng);
+            return distA - distB;
+        });
+        
+        renderStationList(sortedStations.slice(0, 5), document.getElementById('nearby-stations'));
+        
+        // Automatically select and route to nearest available station
+        const nearestAvailable = sortedStations.find(station => station.available);
+        if (nearestAvailable) {
+            autoSelectNearestStation(nearestAvailable, userLat, userLng);
+        }
+    }
+
+    function autoSelectNearestStation(station, userLat, userLng) {
+        // Highlight the nearest station
+        const stationMarker = stationMarkers.find(m => m.id === station.id).marker;
+        stationMarker.openPopup();
+        
+        // Set route from user location to station
+        routingControl.setWaypoints([
+            L.latLng(userLat, userLng),
+            L.latLng(station.lat, station.lng)
+        ]);
+        
+        // Update UI to show selected station
+        document.getElementById('booking-station').value = station.id;
+        
+        // Calculate and display distance
+        const distance = getDistance(userLat, userLng, station.lat, station.lng);
+        const distanceElement = document.createElement('div');
+        distanceElement.className = 'station-distance';
+        distanceElement.innerHTML = `Distance: ${(distance/1000).toFixed(1)} km`;
+        
+        const popupContent = stationMarker.getPopup().getContent();
+        stationMarker.setPopupContent(`${popupContent}<br>${distanceElement.outerHTML}`);
+    }
+
+    // Add this CSS for distance display
+    const style = document.createElement('style');
+    style.textContent = `
+        .station-distance {
+            margin-top: 8px;
+            font-size: 0.9em;
+            color: #1976D2;
+            font-weight: bold;
+        }
+        .leaflet-routing-container {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+    `;
+    document.head.appendChild(style);
+
+    // Initialize with Leaflet Routing Machine
+    L.Routing.control({
+        waypoints: [],
+        routeWhileDragging: true,
+        showAlternatives: false,
+        addWaypoints: false,
+        draggableWaypoints: false,
+        fitSelectedRoutes: true,
+        lineOptions: {
+            styles: [{color: '#4CAF50', opacity: 0.7, weight: 5}]
+        },
+        createMarker: function() { return null; } // Disable default markers
+    }).addTo(map);
+
+    // [Rest of your existing functions remain the same]
+    </script>
+</body>
+</html>

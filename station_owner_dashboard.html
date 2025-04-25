@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EV Station Owner Dashboard</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <style>
+      #map { height: 500px; }
+    </style>
+  
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
+
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@1.0.0/dist/chartjs-adapter-moment.min.js"></script>
+    <style>
+        :root {
+            --primary: #4CAF50;
+            --secondary: #2196F3;
+            --danger: #F44336;
+            --warning: #FF9800;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+        }
+        
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            min-height: 100vh;
+        }
+        
+        .sidebar {
+            background: #2c3e50;
+            color: white;
+            padding: 20px 0;
+        }
+        
+        .sidebar-header {
+            padding: 0 20px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .nav-link {
+            color: rgba(255,255,255,0.8);
+            padding: 12px 20px;
+            border-left: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .nav-link:hover, .nav-link.active {
+            color: white;
+            background: rgba(255,255,255,0.1);
+            border-left: 3px solid var(--primary);
+        }
+        
+        .nav-link i {
+            margin-right: 10px;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .main-content {
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .stat-card {
+            border-radius: 10px;
+            padding: 20px;
+            color: white;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .stat-card.primary {
+            background: linear-gradient(135deg, var(--primary), #66BB6A);
+        }
+        
+        .stat-card.secondary {
+            background: linear-gradient(135deg, var(--secondary), #64B5F6);
+        }
+        
+        .stat-card.warning {
+            background: linear-gradient(135deg, var(--warning), #FFB74D);
+        }
+        
+        .stat-card.danger {
+            background: linear-gradient(135deg, var(--danger), #EF5350);
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .chart-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .station-card {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        
+        .station-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        
+        .status-active {
+            background-color: #E8F5E9;
+            color: #2E7D32;
+        }
+        
+        .status-maintenance {
+            background-color: #FFF8E1;
+            color: #FF8F00;
+        }
+        
+        .status-offline {
+            background-color: #FFEBEE;
+            color: #C62828;
+        }
+        
+        #map {
+            height: 400px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .real-time-status {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        
+        .progress-thin {
+            height: 8px;
+        }
+        
+        .port-status {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        
+        .port-available {
+            background-color: var(--primary);
+        }
+        
+        .port-in-use {
+            background-color: var(--secondary);
+        }
+        
+        .port-faulty {
+            background-color: var(--danger);
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h4><i class="fas fa-charging-station"></i> EV Station Pro</h4>
+                <p class="text-muted mb-0">Owner Dashboard</p>
+            </div>
+            <nav class="nav flex-column mt-3">
+                <a class="nav-link active" href="#" data-section="overview">
+                    <i class="fas fa-tachometer-alt"></i> Overview
+                </a>
+                <a class="nav-link" href="#" data-section="stations">
+                    <i class="fas fa-map-marker-alt"></i> My Stations
+                </a>
+                <a class="nav-link" href="#" data-section="analytics">
+                    <i class="fas fa-chart-line"></i> Business Analytics
+                </a>
+                <a class="nav-link" href="#" data-section="add-station">
+                    <i class="fas fa-plus-circle"></i> Add New Station
+                </a>
+                <a class="nav-link" href="#" data-section="maintenance">
+                    <i class="fas fa-tools"></i> Maintenance
+                </a>
+                <div class="mt-auto p-3">
+                    <div class="d-flex align-items-center">
+                        <img src="https://via.placeholder.com/40" class="rounded-circle me-2">
+                        <div>
+                            <small class="d-block">Logged in as</small>
+                            <strong>Station Owner</strong>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Overview Section -->
+            <div class="dashboard-section" id="overview-section">
+                <h2 class="mb-4">Dashboard Overview</h2>
+                
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="stat-card primary">
+                            <i class="fas fa-charging-station"></i>
+                            <div class="stat-value" id="total-stations">12</div>
+                            <div>Total Stations</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card secondary">
+                            <i class="fas fa-bolt"></i>
+                            <div class="stat-value" id="active-sessions">8</div>
+                            <div>Active Sessions</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card warning">
+                            <i class="fas fa-clock"></i>
+                            <div class="stat-value" id="daily-usage">4.2</div>
+                            <div>Avg Hours/Station</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card danger">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <div class="stat-value" id="issues">3</div>
+                            <div>Maintenance Issues</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-4">
+                    <div class="col-md-8">
+                        <div class="chart-container">
+                            <h5>Today's Energy Consumption</h5>
+                            <canvas id="energyChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="chart-container">
+                            <h5>Port Availability</h5>
+                            <canvas id="availabilityChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chart-container mt-4">
+                    <h5>Recent Activity</h5>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Station</th>
+                                    <th>User</th>
+                                    <th>Duration</th>
+                                    <th>Energy</th>
+                                    <th>Revenue</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recent-activity">
+                                <!-- Filled by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- My Stations Section -->
+            <div class="dashboard-section" id="stations-section" style="display:none;">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2>My Charging Stations</h2>
+                    <button class="btn btn-primary" id="refresh-stations">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+                
+                <div id="map"></div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <h5>Station Status</h5>
+                            <div id="stations-list">
+                                <!-- Filled by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <h5>Real-time Capacity</h5>
+                            <div id="capacity-meters">
+                                <!-- Filled by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Business Analytics Section -->
+            <div class="dashboard-section" id="analytics-section" style="display:none;">
+                <h2 class="mb-4">Business Analytics</h2>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <h5>Monthly Revenue</h5>
+                            <canvas id="revenueChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <h5>Usage by Station</h5>
+                            <canvas id="usageChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chart-container mt-4">
+                    <h5>Efficiency Metrics</h5>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <h6>Uptime</h6>
+                                <div class="progress progress-thin">
+                                    <div class="progress-bar bg-success" style="width: 98%"></div>
+                                </div>
+                                <small class="text-muted">98% average across all stations</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <h6>Energy Efficiency</h6>
+                                <div class="progress progress-thin">
+                                    <div class="progress-bar bg-info" style="width: 92%"></div>
+                                </div>
+                                <small class="text-muted">92% of energy delivered to vehicles</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <h6>Customer Rating</h6>
+                                <div class="progress progress-thin">
+                                    <div class="progress-bar bg-warning" style="width: 88%"></div>
+                                </div>
+                                <small class="text-muted">4.4/5 average rating</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chart-container mt-4">
+                    <h5>Peak Hours Analysis</h5>
+                    <canvas id="peakHoursChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Add New Station Section -->
+            <div class="dashboard-section" id="add-station-section" style="display:none;">
+                <h2 class="mb-4">Add New Charging Station</h2>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <form id="add-station-form">
+                                <div class="mb-3">
+                                    <label class="form-label">Station Name</label>
+                                    <input type="text" class="form-control" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Address</label>
+                                    <input type="text" class="form-control" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Location</label>
+                                    <div id="location-map" style="height: 200px; border-radius: 5px;"></div>
+                                    <small class="text-muted">Click on the map to set location</small>
+                                    <div class="row mt-2">
+                                        <div class="col">
+                                            <input type="text" class="form-control" placeholder="Latitude" readonly>
+                                        </div>
+                                        <div class="col">
+                                            <input type="text" class="form-control" placeholder="Longitude" readonly>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Charger Type</label>
+                                    <select class="form-control" required>
+                                        <option value="fast">Fast Charger (50kW+)</option>
+                                        <option value="slow">Slow Charger (Under 50kW)</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Number of Ports</label>
+                                    <input type="number" class="form-control" min="1" value="2" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Price per kWh ($)</label>
+                                    <input type="number" step="0.01" class="form-control" value="0.45" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Add Station</button>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <h5>New Station Guidelines</h5>
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item">
+                                    <strong>Location:</strong> Choose high-traffic areas with easy access
+                                </li>
+                                <li class="list-group-item">
+                                    <strong>Power Supply:</strong> Ensure adequate electrical infrastructure
+                                </li>
+                                <li class="list-group-item">
+                                    <strong>Parking:</strong> Minimum 2 dedicated parking spots per port
+                                </li>
+                                <li class="list-group-item">
+                                    <strong>Pricing:</strong> Competitive rates based on local market
+                                </li>
+                                <li class="list-group-item">
+                                    <strong>Accessibility:</strong> ADA compliant design required
+                                </li>
+                            </ul>
+                            <div class="alert alert-info mt-3">
+                                <i class="fas fa-info-circle"></i> New stations typically take 3-5 business days to be activated after submission.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Maintenance Section -->
+            <div class="dashboard-section" id="maintenance-section" style="display:none;">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2>Maintenance Management</h2>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newIssueModal">
+                        <i class="fas fa-plus"></i> Report Issue
+                    </button>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="chart-container">
+                            <h5>Active Maintenance Issues</h5>
+                            <div id="maintenance-issues">
+                                <!-- Filled by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="chart-container">
+                            <h5>Maintenance History</h5>
+                            <canvas id="maintenanceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chart-container mt-4">
+                    <h5>Scheduled Maintenance</h5>
+                    <div id="scheduled-maintenance">
+                        <!-- Filled by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- New Issue Modal -->
+    <div class="modal fade" id="newIssueModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Report New Issue</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="issue-form">
+                        <div class="mb-3">
+                            <label class="form-label">Station</label>
+                            <select class="form-control" required>
+                                <option value="">Select Station</option>
+                                <!-- Filled by JavaScript -->
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Issue Type</label>
+                            <select class="form-control" required>
+                                <option value="hardware">Hardware Failure</option>
+                                <option value="software">Software Issue</option>
+                                <option value="network">Network Problem</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" rows="3" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Priority</label>
+                            <select class="form-control" required>
+                                <option value="low">Low</option>
+                                <option value="medium">Medium</option>
+                                <option value="high">High</option>
+                                <option value="critical">Critical</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="submit-issue">Submit Report</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        // Sample data - in a real app, this would come from your backend
+        const stations = [
+            {
+                id: 1,
+                name: "Tata power",
+                address: "JK Road,Sector A, Bhopal",
+                lat: 23.25906,
+                lng: 77.45687,
+                ports: 4,
+                availablePorts: 2,
+                type: "fast",
+                status: "active",
+                revenue: 1250,
+                usage: 85
+            },
+            {
+                id: 2,
+                name: "MP Nagar Charging Hub",
+                address: " MP Nagar Zone 1,, Bhopal",
+                lat: 23.23155,
+                lng: 77.44223,
+                ports: 6,
+                availablePorts: 3,
+                type: "fast",
+                status: "active",
+                revenue: 980,
+                usage: 72
+            },
+            {
+                id: 3,
+                name: "E-Fill Charge Station",
+                address: "Mahatma Gandhi road ,Shakti Nagar ,Bhopal",
+                lat: 23.23163,
+                lng: 77.45755,
+                ports: 2,
+                availablePorts: 1,
+                type: "slow",
+                status: "maintenance",
+                revenue: 420,
+                usage: 45
+            }
+        ];
+        
+        const recentActivity = [
+            {
+                station: "Tata power",
+                user: "Parth verma",
+                duration: "45 min",
+                energy: "32 kWh",
+                revenue: "$14.40",
+                status: "completed"
+            },
+            {
+                station: "MP Nagar charging hub",
+                user: "Nikhil",
+                duration: "1h 15min",
+                energy: "50 kWh",
+                revenue: "$22.50",
+                status: "in-progress"
+            },
+            {
+                station: "E-Fill Charge Station",
+                user: "Meghendra",
+                duration: "2h 30min",
+                energy: "18 kWh",
+                revenue: "$48.10",
+                status: "failed"
+            }
+        ];
+        
+        const maintenanceIssues = [
+            {
+                id: 1,
+                station: "MP Nagar charging hub ",
+                type: "hardware",
+                description: "Port #2 not delivering full power",
+                priority: "high",
+                reported: "2023-05-15",
+                status: "open"
+            },
+            {
+                id: 2,
+                station: "Tata Power",
+                type: "software",
+                description: "Payment system intermittent failures",
+                priority: "medium",
+                reported: "2025-02-18",
+                status: "in-progress"
+            }
+        ];
+        
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            // Navigation
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    const section = this.getAttribute('data-section');
+                    document.querySelectorAll('.dashboard-section').forEach(sec => {
+                        sec.style.display = 'none';
+                    });
+                    document.getElementById(`${section}-section`).style.display = 'block';
+                    
+                    // Initialize specific sections when shown
+                    if (section === 'stations') initStationsMap();
+                    if (section === 'add-station') initLocationMap();
+                });
+            });
+            
+            // Initialize charts
+            initCharts();
+            
+            // Load data
+            loadOverviewData();
+            loadStationsList();
+            loadRecentActivity();
+            loadMaintenanceData();
+        });
+        
+        function initCharts() {
+            // Energy Chart
+            new Chart(document.getElementById('energyChart'), {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: 24}, (_, i) => `${i}:00`),
+                    datasets: [{
+                        label: 'Energy Consumption (kWh)',
+                        data: [5,8,12,15,20,25,30,35,40,45,50,55,60,65,70,75,80,75,70,65,60,50,40,30],
+                        borderColor: '#4CAF50',
+                        backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+            
+            // Availability Chart
+            new Chart(document.getElementById('availabilityChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Available', 'In Use', 'Maintenance'],
+                    datasets: [{
+                        data: [12, 8, 4],
+                        backgroundColor: ['#4CAF50', '#2196F3', '#FF9800']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    cutout: '70%'
+                }
+            });
+            
+            // Revenue Chart
+            new Chart(document.getElementById('revenueChart'), {
+                type: 'bar',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
+                    datasets: [{
+                        label: 'Revenue ($)',
+                        data: [3200, 4500, 3800, 5100, 4900],
+                        backgroundColor: '#4CAF50'
+                    }]
+                },
+                options: {
+                    responsive: true
+                }
+            });
+            
+            // Usage Chart
+            new Chart(document.getElementById('usageChart'), {
+                type: 'radar',
+                data: {
+                    labels: stations.map(s => s.name),
+                    datasets: [{
+                        label: 'Usage (%)',
+                        data: stations.map(s => s.usage),
+                        backgroundColor: 'rgba(33, 150, 243, 0.2)',
+                        borderColor: '#2196F3',
+                        pointBackgroundColor: '#2196F3'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        r: {
+                            angleLines: { display: true },
+                            suggestedMin: 0,
+                            suggestedMax: 100
+                        }
+                    }
+                }
+            });
+            
+            // Peak Hours Chart
+            new Chart(document.getElementById('peakHoursChart'), {
+                type: 'bar',
+                data: {
+                    labels: ['6-9 AM', '9-12 PM', '12-3 PM', '3-6 PM', '6-9 PM', '9-12 AM'],
+                    datasets: [{
+                        label: 'Average Sessions',
+                        data: [8, 12, 18, 22, 15, 5],
+                        backgroundColor: '#FF9800'
+                    }]
+                },
+                options: {
+                    responsive: true
+                }
+            });
+            
+            // Maintenance Chart
+            new Chart(document.getElementById('maintenanceChart'), {
+                type: 'polarArea',
+                data: {
+                    labels: ['Hardware', 'Software', 'Network', 'Other'],
+                    datasets: [{
+                        data: [12, 8, 5, 3],
+                        backgroundColor: ['#F44336', '#FF9800', '#2196F3', '#9E9E9E']
+                    }]
+                },
+                options: {
+                    responsive: true
+                }
+            });
+        }
+        
+        function loadOverviewData() {
+            document.getElementById('total-stations').textContent = stations.length;
+            document.getElementById('active-sessions').textContent = stations.reduce((sum, s) => sum + (s.ports - s.availablePorts), 0);
+            document.getElementById('daily-usage').textContent = '4.2';
+            document.getElementById('issues').textContent = maintenanceIssues.length;
+        }
+        
+        function loadStationsList() {
+            const container = document.getElementById('stations-list');
+            container.innerHTML = '';
+            
+            stations.forEach(station => {
+                const card = document.createElement('div');
+                card.className = 'station-card';
+                card.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5>${station.name}</h5>
+                            <small class="text-muted">${station.address}</small>
+                        </div>
+                        <span class="status-badge ${station.status === 'active' ? 'status-active' : 
+                            station.status === 'maintenance' ? 'status-maintenance' : 'status-offline'}">
+                            ${station.status.charAt(0).toUpperCase() + station.status.slice(1)}
+                        </span>
+                    </div>
+                    <div class="mt-3">
+                        <div class="real-time-status">
+                            <span class="port-available"></span>
+                            <small>Available: ${station.availablePorts}/${station.ports}</small>
+                            <div class="ms-auto">
+                                <small>$${station.revenue} this month</small>
+                            </div>
+                        </div>
+                        <div class="progress progress-thin">
+                            <div class="progress-bar" style="width: ${(station.availablePorts/station.ports)*100}%"></div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+            
+            // Capacity meters
+            const capacityContainer = document.getElementById('capacity-meters');
+            capacityContainer.innerHTML = '';
+            
+            stations.forEach(station => {
+                const meter = document.createElement('div');
+                meter.className = 'mb-3';
+                meter.innerHTML = `
+                    <div class="d-flex justify-content-between mb-1">
+                        <small>${station.name}</small>
+                        <small>${Math.round((station.usage || 0))}%</small>
+                    </div>
+                    <div class="progress progress-thin">
+                        <div class="progress-bar" style="width: ${station.usage || 0}%"></div>
+                    </div>
+                `;
+                capacityContainer.appendChild(meter);
+            });
+        }
+        
+        function loadRecentActivity() {
+            const container = document.getElementById('recent-activity');
+            container.innerHTML = '';
+            
+            recentActivity.forEach(activity => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${activity.station}</td>
+                    <td>${activity.user}</td>
+                    <td>${activity.duration}</td>
+                    <td>${activity.energy}</td>
+                    <td>${activity.revenue}</td>
+                    <td>
+                        <span class="badge ${activity.status === 'completed' ? 'bg-success' : 
+                            activity.status === 'in-progress' ? 'bg-primary' : 'bg-danger'}">
+                            ${activity.status}
+                        </span>
+                    </td>
+                `;
+                container.appendChild(row);
+            });
+        }
+        
+        function loadMaintenanceData() {
+            const container = document.getElementById('maintenance-issues');
+            container.innerHTML = '';
+            
+            maintenanceIssues.forEach(issue => {
+                const item = document.createElement('div');
+                item.className = 'alert-item ' + (issue.priority === 'high' || issue.priority === 'critical' ? 'critical' : '');
+                item.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${issue.station}</strong>
+                            <small class="d-block">${issue.description}</small>
+                        </div>
+                        <div class="text-end">
+                            <small class="d-block">${issue.reported}</small>
+                            <span class="badge ${issue.priority === 'high' || issue.priority === 'critical' ? 'bg-danger' : 
+                                issue.priority === 'medium' ? 'bg-warning' : 'bg-secondary'}">
+                                ${issue.priority}
+                            </span>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+            
+            // Scheduled maintenance
+            const scheduledContainer = document.getElementById('scheduled-maintenance');
+            scheduledContainer.innerHTML = `
+                <div class="alert alert-info">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>E-Fill Charge Station</strong>
+                            <small class="d-block">Routine inspection and cleaning</small>
+                        </div>
+                        <div>
+                            <small class="d-block">Scheduled: May 25, 2023</small>
+                            <button class="btn btn-sm btn-outline-primary">Reschedule</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Populate station dropdown in modal
+            const stationSelect = document.querySelector('#newIssueModal select');
+            stationSelect.innerHTML = '<option value="">Select Station</option>';
+            stations.forEach(station => {
+                const option = document.createElement('option');
+                option.value = station.id;
+                option.textContent = station.name;
+                stationSelect.appendChild(option);
+            });
+        }
+        
+        function initStationsMap() {
+            const map = L.map('map').setView([23.2599, 77.4126], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+            
+            stations.forEach(station => {
+                const icon = L.divIcon({
+                    className: `custom-marker ${station.status === 'active' ? 'available' : 
+                        station.status === 'maintenance' ? 'maintenance' : 'offline'}`,
+                    html: `<div>${station.availablePorts}/${station.ports}</div>`,
+                    iconSize: [30, 30]
+                });
+                
+                L.marker([station.lat, station.lng], {icon}).addTo(map)
+                    .bindPopup(`
+                        <b>${station.name}</b><br>
+                        ${station.address}<br>
+                        Status: ${station.status}<br>
+                        Available: ${station.availablePorts}/${station.ports} ports
+                    `);
+            });
+        }
+        
+        function initLocationMap() {
+            const map = L.map('location-map').setView([23.2599, 77.4126], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+            
+            let marker;
+            
+            map.on('click', function(e) {
+                if (marker) map.removeLayer(marker);
+                marker = L.marker(e.latlng).addTo(map);
+                
+                // Update form fields
+                const inputs = document.querySelectorAll('#location-map').closest('.mb-3').querySelectorAll('input');
+                inputs[0].value = e.latlng.lat.toFixed(6);
+                inputs[1].value = e.latlng.lng.toFixed(6);
+            });
+        }
+        
+        // Form submission
+        document.getElementById('add-station-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('Station added successfully!');
+            // In a real app, you would send this to your backend
+        });
+        
+        document.getElementById('submit-issue').addEventListener('click', function() {
+            alert('Issue reported successfully!');
+            // Close modal
+            bootstrap.Modal.getInstance(document.getElementById('newIssueModal')).hide();
+            // In a real app, you would send this to your backend
+        });
+    </script>
+</body>
+</html>
